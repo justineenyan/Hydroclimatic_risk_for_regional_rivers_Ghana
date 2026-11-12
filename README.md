@@ -34,3 +34,6 @@ The Pra and Ankobra rivers drain Ghana's most prolific gold-mining districts (Ta
    - Heath, R., et al. (2004). *Water Related Impacts of Small Scale Mining.* Water Research Commission (WRC Report No. 1150/1/04).
 
 
+## TOOLS used for this Project 
+1. **leaflet.js, GeoJson, HTML and CSS, Vanilla Javascript, Jupyter Notebooks, SQL, Python
+
