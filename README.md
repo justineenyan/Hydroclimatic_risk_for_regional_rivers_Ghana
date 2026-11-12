@@ -35,5 +35,5 @@ The Pra and Ankobra rivers drain Ghana's most prolific gold-mining districts (Ta
 
 
 ## TOOLS used for this Project 
-1. **leaflet.js, GeoJson, HTML and CSS, Vanilla Javascript, Jupyter Notebooks, SQL, Python
+1. leaflet.js, GeoJson, HTML and CSS, Vanilla Javascript, Jupyter Notebooks, SQL, Python
 
