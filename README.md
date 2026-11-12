@@ -6,7 +6,7 @@ An interactive geospatial investigation exploring how artisanal and small-scale 
 
 ---
 
-## 📌 Project Background
+## Project Background
 
 The Pra and Ankobra rivers drain Ghana's most prolific gold-mining districts (Tarkwa, Prestea, Bogoso, Obuasi, and Dunkwa-on-Offin). Over the past fifteen years, the mechanization of informal alluvial gold mining—utilizing heavy excavators and floating riverbed dredgers (*changfas*)—has severely altered fluvial geomorphology:
 - **Extreme Turbidity:** Baseline river turbidity has surged from $<5\text{ NTU}$ to over $1,500–3,500\text{ NTU}$.
@@ -15,7 +15,7 @@ The Pra and Ankobra rivers drain Ghana's most prolific gold-mining districts (Ta
 
 ---
 
-## 🗺️ Key Features of the Interactive Dashboard
+## Key Features of the Interactive Dashboard
 
 - **High-Resolution Vector Hydrography:** Dedicated GeoJSON paths mapping the Pra mainstem, Offin, Birim, and Ankobra channels.
 - **Deposit & Intake Layer Overlays:** Spatial correlation linking Birimian gold deposits with downstream municipal treatment intakes.
@@ -24,7 +24,7 @@ The Pra and Ankobra rivers drain Ghana's most prolific gold-mining districts (Ta
 
 ---
 
-## 🔬 Data Sources & Credibility
+##  Data Sources & Credibility
 
 1. **Mine Deposits & Exploration Sites:** USGS World Minerals Exploration Database (WMED) (`Mineral Exploration.csv`, `Mineral Deposits.csv`).
 2. **Hydrographic Basins:** Ghana Water Resources Commission (WRC) Pra & Ankobra Basin Integrated Water Resources Management (IWRM) surveys; HydroSHEDS Level 8 drainage lines.
