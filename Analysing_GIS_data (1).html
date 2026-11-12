@@ -1,0 +1,2154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="artifact-type" content="dashboard">
+  <meta name="design-style" content="figure">
+  <title>Southwestern Ghana Gold Mining Belt — GIS Case Study &amp; Turbidity Risk</title>
+
+  <!-- Pinned Fonts & Libraries -->
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Roboto+Mono:wght@100..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@1.43.0/dist/umd/lucide.min.js"></script>
+
+  <style>
+    :root {
+      color-scheme: light;
+
+      /* Page and surfaces */
+      --background: #ffffff;
+      --surface-container-low: #f8f8f8;
+      --surface-container: #f1f1f1;
+      --surface-container-high: #e8e8e8;
+
+      /* Ink */
+      --on-surface: #121212;
+      --on-surface-variant: #5f5f5f;
+
+      /* Rules */
+      --outline: #8a8a8a;
+      --outline-variant: #e0e0e0;
+
+      /* Accents */
+      --primary: #121212;
+      --on-primary: #ffffff;
+      --primary-container: #e8e8e8;
+      --on-primary-container: #121212;
+      --secondary: #1f5fa8;
+      --tertiary: #b43c0b;
+      --error: #b42318;
+      --on-error: #ffffff;
+      --positive: #1b8a6b;
+      --warning: #d97706;
+      --focus: #121212;
+
+      /* Data series tokens */
+      --data-1: #e8590c;
+      --data-2: #2f6db5;
+      --data-3: #1b8a6b;
+      --data-4: #8e5bb5;
+      --data-context: #c4c4c4;
+
+      /* GIS Specific Palette Tokens */
+      --river-clean: #1d4ed8;
+      --river-turbid: #b45309;
+      --mine-commercial: #1e3a8a;
+      --mine-alluvial: #c2410c;
+      --water-intake-ok: #059669;
+      --water-intake-impaired: #dc2626;
+      --hazard-critical: #991b1b;
+      --basin-pra: #2563eb;
+      --basin-ankobra: #0d9488;
+      --buffer-5k-stroke: #dc2626;
+      --buffer-5k-fill: rgba(220, 38, 38, 0.22);
+      --buffer-10k-stroke: #ea580c;
+      --buffer-10k-fill: rgba(234, 88, 12, 0.13);
+      --buffer-25k-stroke: #d97706;
+      --buffer-25k-fill: rgba(217, 119, 6, 0.07);
+      --ocean-fill: #cfe0ec;
+      --ghana-land: #faf8f5;
+      --neighbor-land: #eae6de;
+
+      /* Fonts */
+      --font-headline: 'Schibsted Grotesk', sans-serif;
+      --font-body: 'Newsreader', serif;
+      --font-label: 'Roboto Mono', monospace;
+
+      /* Shape */
+      --rounded: 0.25rem;
+      --rounded-lg: 0px;
+      --rounded-full: 0.25rem;
+
+      /* Effects */
+      --ink-rule: 1px solid var(--on-surface);
+      --hairline: 1px solid var(--outline-variant);
+      --grid-dash: 2 3;
+      --story-stroke: 3px;
+      --compare-stroke: 2px;
+      --context-stroke: 1.4px;
+      --bar-height: 6px;
+
+      /* Spacing scale */
+      --space-xs: 0.25rem;
+      --space-sm: 0.5rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2.5rem;
+      --space-2xl: 4rem;
+
+      /* Type scale for dashboard */
+      --display-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.25rem);
+      --headline-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+      --subhead-size: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+      --body-size: clamp(0.9375rem, 0.9rem + 0.15vw, 1rem);
+      --label-size: 0.75rem;
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+      --dur-micro: 120ms;
+      --dur-short: 220ms;
+      --dur-long: 420ms;
+    }
+
+    /* Base Reset */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: clip; margin: 0; padding: 0; background: var(--background); color: var(--on-surface); }
+    header { position: static !important; }
+
+    .page-grid {
+      display: grid;
+      gap: var(--space-lg);
+      padding: var(--space-lg);
+      max-width: 1360px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .page-grid * { min-width: 0; }
+
+    /* Typography Utilities */
+    .font-headline { font-family: var(--font-headline); }
+    .font-body { font-family: var(--font-body); }
+    .font-label { font-family: var(--font-label); }
+
+    /* Figure Style Treatments */
+    .ink-header {
+      border-bottom: var(--ink-rule);
+      padding-bottom: var(--space-md);
+    }
+    .figure-stat {
+      border-top: var(--ink-rule);
+      padding-top: var(--space-sm);
+    }
+    .figure-stat-val {
+      font-family: var(--font-label);
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .figure-stat-bar {
+      height: var(--bar-height);
+      background: var(--surface-container-high);
+      margin-top: var(--space-xs);
+      overflow: hidden;
+    }
+    .figure-stat-bar > div {
+      height: 100%;
+      background: var(--data-1);
+    }
+    .source-line {
+      font-family: var(--font-label);
+      font-size: var(--label-size);
+      color: var(--on-surface-variant);
+    }
+
+    /* Map Elements */
+    #map {
+      height: 620px;
+      min-height: 620px;
+      background: var(--ocean-fill);
+      border: var(--hairline);
+    }
+    .leaflet-container {
+      background: var(--ocean-fill);
+      font-family: var(--font-headline);
+    }
+
+    /* Custom Map Markers & Tooltips */
+    .map-custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1.5px solid #ffffff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      cursor: pointer;
+      transition: transform var(--dur-micro) var(--ease-out);
+    }
+    .map-custom-marker:hover {
+      transform: scale(1.25);
+      z-index: 9999 !important;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      border-radius: 50%;
+      border: 1.5px solid var(--water-intake-impaired);
+      opacity: 0.8;
+      animation: pulseAnim 2s infinite ease-out;
+    }
+    @keyframes pulseAnim {
+      0% { transform: scale(1); opacity: 0.9; }
+      100% { transform: scale(2.2); opacity: 0; }
+    }
+
+    /* Button and Control Elements */
+    .btn-action {
+      font-family: var(--font-headline);
+      font-weight: 600;
+      font-size: 0.8125rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: var(--rounded);
+      border: 1px solid var(--outline);
+      background: #ffffff;
+      color: var(--on-surface);
+      cursor: pointer;
+      transition: background var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+    }
+    .btn-action:hover {
+      background: var(--surface-container-high);
+    }
+    .btn-action.active {
+      background: var(--primary);
+      color: var(--on-primary);
+      border-color: var(--primary);
+    }
+
+    .badge-pill {
+      font-family: var(--font-label);
+      font-size: 0.6875rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: var(--rounded);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    /* Checkbox & Controls */
+    .layer-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+      font-family: var(--font-label);
+      font-size: 0.75rem;
+      cursor: pointer;
+      padding: 0.25rem 0.5rem;
+      background: var(--surface-container-low);
+      border: var(--hairline);
+      border-radius: var(--rounded);
+      user-select: none;
+    }
+    .layer-toggle input {
+      cursor: pointer;
+      accent-color: var(--on-surface);
+    }
+
+    /* Range slider */
+    input[type=range] {
+      accent-color: var(--data-1);
+    }
+
+    /* Table styling */
+    .dossier-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+    }
+    .dossier-table th {
+      border-bottom: var(--ink-rule);
+      font-family: var(--font-label);
+      font-weight: 500;
+      text-transform: uppercase;
+      font-size: 0.6875rem;
+      letter-spacing: 0.05em;
+      padding: 0.5rem 0.5rem;
+      text-align: left;
+      color: var(--on-surface-variant);
+    }
+    .dossier-table td {
+      border-bottom: var(--hairline);
+      padding: 0.55rem 0.5rem;
+      vertical-align: middle;
+    }
+    .dossier-table tr:hover td {
+      background: var(--surface-container-low);
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+      .pulse-ring { display: none; }
+    }
+
+    @media (max-width: 768px) {
+      .page-grid { padding: var(--space-sm); }
+      #map { height: 460px; min-height: 460px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-grid">
+
+  <!-- Masthead Dossier Header -->
+  <header class="ink-header">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div class="max-w-4xl">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge-pill bg-neutral-900 text-white font-medium">GIS Case Study &amp; Hydroclimatic Dossier</span>
+          <span class="badge-pill bg-amber-100 text-amber-900 border border-amber-300">Southwestern Ghana Gold Belt</span>
+          <span class="badge-pill bg-blue-100 text-blue-900 border border-blue-300">WGS84 / EPSG:4326</span>
+        </div>
+        <h1 class="font-headline text-3xl md:text-4xl font-extrabold tracking-tight text-neutral-950">
+          Pra &amp; Ankobra River Basins: Galamsey Turbidity &amp; Contamination Crisis
+        </h1>
+        <p class="font-body text-base md:text-lg text-neutral-700 italic mt-1 leading-relaxed">
+          Spatial assessment of artisanal riverbed dredging across the Ashanti and Tarkwaian gold belts, modeling toxic mercury bioaccumulation, arsenopyrite oxidation, and municipal water treatment collapse.
+        </p>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="font-label text-xs text-neutral-500 uppercase tracking-widest">Survey &amp; Sensor Synthesis</div>
+        <div class="font-label text-sm font-semibold text-neutral-900">Pra (Offin/Birim/Anum) &amp; Ankobra</div>
+        <div class="font-label text-xs text-neutral-500">Ghana Water Co. &amp; Geological Surveys</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Key Figures Stat Row (Ink-Ruled Figure Blocks) -->
+  <section class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div class="figure-stat">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-wider">Peak Offin-Pra Turbidity</div>
+      <div class="figure-stat-val text-2xl md:text-3xl text-amber-700 mt-1">38,400 <span class="text-xs font-normal text-neutral-600">NTU</span></div>
+      <div class="font-label text-xs text-amber-800 mt-1">WHO standard: &lt;5 NTU (7,680×)</div>
+      <div class="figure-stat-bar"><div style="width: 100%; background: var(--tertiary);"></div></div>
+    </div>
+
+    <div class="figure-stat">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-wider">Sediment Mercury (Hg)</div>
+      <div class="figure-stat-val text-2xl md:text-3xl text-rose-700 mt-1">6.80 <span class="text-xs font-normal text-neutral-600">mg/kg</span></div>
+      <div class="font-label text-xs text-rose-800 mt-1">Sediment enrichment: 40.0× baseline</div>
+      <div class="figure-stat-bar"><div style="width: 88%; background: var(--error);"></div></div>
+    </div>
+
+    <div class="figure-stat">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-wider">Arsenic (As) in Runoff</div>
+      <div class="figure-stat-val text-2xl md:text-3xl text-neutral-900 mt-1">820 <span class="text-xs font-normal text-neutral-600">µg/L</span></div>
+      <div class="font-label text-xs text-neutral-700 mt-1">Arsenopyrite oxidation (82× limit)</div>
+      <div class="figure-stat-bar"><div style="width: 78%; background: var(--on-surface);"></div></div>
+    </div>
+
+    <div class="figure-stat">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-wider">Daboase Intake Deficit</div>
+      <div class="figure-stat-val text-2xl md:text-3xl text-red-600 mt-1">-61.4% <span class="text-xs font-normal text-neutral-600">MGD</span></div>
+      <div class="font-label text-xs text-red-800 mt-1">8.5 MGD yield vs 22.0 MGD design</div>
+      <div class="figure-stat-bar"><div style="width: 61%; background: var(--water-intake-impaired);"></div></div>
+    </div>
+
+    <div class="figure-stat col-span-2 md:col-span-1">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-wider">Degraded River Reach</div>
+      <div class="figure-stat-val text-2xl md:text-3xl text-blue-700 mt-1">624 <span class="text-xs font-normal text-neutral-600">km</span></div>
+      <div class="font-label text-xs text-blue-800 mt-1">74.3% of primary drainage network</div>
+      <div class="figure-stat-bar"><div style="width: 74%; background: var(--secondary);"></div></div>
+    </div>
+  </section>
+
+  <!-- Interactive GIS Map & Spatial Dossier Workspace -->
+  <section class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    
+    <!-- Left Map Column (8 Columns) -->
+    <div class="lg:col-span-8 flex flex-col gap-3">
+      
+      <!-- Spatial View & Preset Controls Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 p-2 bg-neutral-50 border border-neutral-200">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="font-label text-xs text-neutral-500 uppercase mr-1">Focus Reaches:</span>
+          <button type="button" class="btn-action active" id="btnViewFull" onclick="flyToView('full')">Full Gold Belt</button>
+          <button type="button" class="btn-action" id="btnViewDunkwa" onclick="flyToView('dunkwa')">Dunkwa (Offin-Pra)</button>
+          <button type="button" class="btn-action" id="btnViewDaboase" onclick="flyToView('daboase')">Daboase (Takoradi Intake)</button>
+          <button type="button" class="btn-action" id="btnViewPrestea" onclick="flyToView('prestea')">Prestea-Ankobra</button>
+          <button type="button" class="btn-action" id="btnViewBunso" onclick="flyToView('bunso')">Bunso-Birim Basin</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label for="selectBasinFilter" class="font-label text-xs text-neutral-500 uppercase">Basin:</label>
+          <select id="selectBasinFilter" onchange="filterBasin(this.value)" class="font-label text-xs bg-white border border-neutral-300 py-1 px-2 rounded">
+            <option value="all">All Drainage Basins</option>
+            <option value="pra">Pra Basin (23,200 km²)</option>
+            <option value="ankobra">Ankobra Basin (8,400 km²)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Layer Toggles Checkbox Bar -->
+      <div class="flex flex-wrap items-center gap-2 p-2 bg-white border border-neutral-200 text-xs">
+        <span class="font-label text-xs font-semibold text-neutral-700 uppercase tracking-wide mr-1">Layers:</span>
+        
+        <label class="layer-toggle">
+          <input type="checkbox" id="layerRivers" checked onchange="toggleLayer('rivers', this.checked)">
+          <span class="w-3 h-0.5 bg-blue-600 inline-block"></span>
+          <span>River Channels</span>
+        </label>
+
+        <label class="layer-toggle">
+          <input type="checkbox" id="layerTurbidPlumes" checked onchange="toggleLayer('plumes', this.checked)">
+          <span class="w-3 h-1 bg-amber-700 inline-block"></span>
+          <span>Turbidity Plumes</span>
+        </label>
+
+        <label class="layer-toggle">
+          <input type="checkbox" id="layerMines" checked onchange="toggleLayer('mines', this.checked)">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-900 inline-block border border-white"></span>
+          <span>Gold Mines &amp; Deposits</span>
+        </label>
+
+        <label class="layer-toggle">
+          <input type="checkbox" id="layerIntakes" checked onchange="toggleLayer('intakes', this.checked)">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-600 inline-block border border-white"></span>
+          <span>Water Intakes (GWCL)</span>
+        </label>
+
+        <label class="layer-toggle">
+          <input type="checkbox" id="layerHazardZones" checked onchange="toggleLayer('hazardZones', this.checked)">
+          <span class="w-3 h-2 bg-red-200 border border-red-600 inline-block"></span>
+          <span>Galamsey Epicenters</span>
+        </label>
+
+        <div class="flex items-center gap-1.5 ml-auto">
+          <label for="selectBufferRadius" class="font-label text-xs text-neutral-500 uppercase">Buffer:</label>
+          <select id="selectBufferRadius" onchange="setBufferRadius(this.value)" class="font-label text-xs bg-white border border-neutral-300 py-0.5 px-1.5 rounded">
+            <option value="none">Buffers Off</option>
+            <option value="5km">5 km Critical Zone</option>
+            <option value="10km" selected>10 km Runoff Ring</option>
+            <option value="25km">25 km Catchment Buffer</option>
+            <option value="all">Show All Buffers (5/10/25km)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Main GIS Leaflet Container -->
+      <div class="relative">
+        <div id="map"></div>
+
+        <!-- Floating Cartographic Legend on Map -->
+        <div class="absolute bottom-3 left-3 z-[1000] bg-white/95 backdrop-blur-sm p-3 border border-neutral-300 shadow-sm max-w-xs text-xs font-label">
+          <div class="font-bold text-neutral-900 uppercase tracking-wider mb-1.5 flex items-center justify-between border-b border-neutral-200 pb-1">
+            <span>Geospatial Legend</span>
+            <span class="text-[10px] text-neutral-400 font-normal">WGS84</span>
+          </div>
+
+          <div class="space-y-1.5 text-[11px]">
+            <div class="flex items-center gap-2">
+              <span class="w-4 h-0.5 bg-blue-700 inline-block"></span>
+              <span class="text-neutral-700">Pra / Ankobra Mainstem</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-4 h-1 bg-amber-700 inline-block"></span>
+              <span class="text-neutral-700">Galamsey Siltation Reach (&gt;15,000 NTU)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-blue-900 border border-white inline-block"></span>
+              <span class="text-neutral-700">Commercial Industrial Mine (e.g. Obuasi, Tarkwa)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-amber-600 border border-white inline-block"></span>
+              <span class="text-neutral-700">Alluvial / Small-Scale Dredge Site (Dunkwa, Prestea)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-red-600 border border-white inline-block ring-2 ring-red-300"></span>
+              <span class="text-neutral-700">Municipal Water Treatment Intake (GWCL)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="w-3.5 h-2.5 bg-red-100 border border-red-500 inline-block"></span>
+              <span class="text-neutral-700">Contamination Hazard Buffer (5 / 10 / 25 km)</span>
+            </div>
+          </div>
+          <div class="mt-2 pt-1.5 border-t border-neutral-200 text-[10px] text-neutral-500">
+            Boundaries: Natural Earth Vector (Public Domain). No external tile server.
+          </div>
+        </div>
+
+        <!-- Lat/Lon & Zoom Readout -->
+        <div class="absolute top-3 right-3 z-[1000] bg-white/90 p-1.5 border border-neutral-300 text-[10px] font-label text-neutral-600">
+          <span id="coordsDisplay">5.850° N, 1.650° W | Zoom: 8</span>
+        </div>
+      </div>
+
+      <!-- Quick Geo-Context Bar -->
+      <div class="p-2.5 bg-neutral-100 border border-neutral-200 text-xs font-label text-neutral-600 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <strong class="text-neutral-900">Hydrographic Network:</strong> Pra Basin (Offin, Birim, Anum tributaries) discharging at Shama; Ankobra Basin discharging at Axim.
+        </div>
+        <div class="text-neutral-500">
+          Click any river, mine, or intake on map to inspect geochemical metrics.
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Active Feature Dossier & Simulation Workspace (4 Columns) -->
+    <div class="lg:col-span-4 flex flex-col gap-4">
+
+      <!-- Feature Dossier Card -->
+      <div class="p-4 bg-white border border-neutral-200">
+        <div class="flex items-center justify-between border-b border-neutral-900 pb-2 mb-3">
+          <div class="font-headline font-bold text-sm uppercase tracking-wide text-neutral-900 flex items-center gap-1.5">
+            <span class="w-2 h-2 bg-amber-600 inline-block"></span>
+            <span id="dossierTitle">Geospatial Feature Dossier</span>
+          </div>
+          <span id="dossierType" class="badge-pill bg-neutral-200 text-neutral-800">CATCHMENT SUMMARY</span>
+        </div>
+
+        <div id="dossierContent" class="space-y-3">
+          <p class="font-body text-sm text-neutral-700 leading-relaxed">
+            Southwestern Ghana hosts West Africa's premier auriferous belts (Ashanti, Tarkwaian, and Sefwi). Unregulated riverbed excavator dredging and suction washing have transformed the Pra and Ankobra drainages into hyper-turbid corridors, threatening potable water production for over 1.2 million urban residents.
+          </p>
+
+          <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+            <div class="flex justify-between">
+              <span class="text-neutral-500">Selected Target:</span>
+              <span class="font-semibold text-neutral-900" id="dossierTargetName">Southwestern Regional Gold Belt</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-neutral-500">Primary Basins:</span>
+              <span class="text-neutral-800">Pra (23,200 km²) &amp; Ankobra (8,400 km²)</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-neutral-500">Geological Domain:</span>
+              <span class="text-neutral-800">Birimian Metavolcanics &amp; Tarkwaian Reefs</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-neutral-500">Threat Vectors:</span>
+              <span class="text-red-700 font-medium">Turbidity, Mercury (Hg), Arsenic (As)</span>
+            </div>
+          </div>
+
+          <div class="pt-1">
+            <div class="font-label text-xs font-semibold text-neutral-900 uppercase tracking-wider mb-1">Critical Water Intakes at Risk:</div>
+            <ul class="text-xs space-y-1 text-neutral-700">
+              <li class="flex items-center justify-between">
+                <span>• Daboase Intake (Sekondi-Takoradi):</span>
+                <span class="font-label text-red-600 font-medium">61% Supply Deficit</span>
+              </li>
+              <li class="flex items-center justify-between">
+                <span>• Bunso Water Works (Birim):</span>
+                <span class="font-label text-red-600 font-medium">Frequent Shutdown</span>
+              </li>
+              <li class="flex items-center justify-between">
+                <span>• Twifo Praso Plant (Pra):</span>
+                <span class="font-label text-amber-700 font-medium">Severe Impeller Wear</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-4 pt-3 border-t border-neutral-200 flex items-center justify-between">
+          <span class="font-label text-[11px] text-neutral-500" id="dossierCoords">Coordinates: 5°51'N, 1°39'W</span>
+          <button type="button" class="btn-action text-xs" onclick="resetDossier()">Reset Dossier</button>
+        </div>
+      </div>
+
+      <!-- Interactive Galamsey Buffer & Enforcement Simulator -->
+      <div class="p-4 bg-neutral-50 border border-neutral-200">
+        <div class="border-b border-neutral-900 pb-2 mb-3">
+          <h2 class="font-headline font-bold text-sm uppercase tracking-wide text-neutral-900 flex items-center gap-1.5">
+            <span class="w-2 h-2 bg-blue-600 inline-block"></span>
+            <span>Policy &amp; Buffer Compliance Simulator</span>
+          </h2>
+          <p class="font-body text-xs text-neutral-600 italic mt-0.5">
+            Simulate water quality and supply recovery as river buffer exclusion zones and excavator enforcement quotas are applied.
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center text-xs font-label mb-1">
+              <label for="sliderBufferDistance" class="text-neutral-700 font-medium">Enforced Riparian Buffer:</label>
+              <span class="font-bold text-neutral-900" id="valBufferDistance">500 meters</span>
+            </div>
+            <input type="range" id="sliderBufferDistance" min="100" max="2000" step="100" value="500" class="w-full h-1.5 bg-neutral-300 rounded cursor-pointer" oninput="updateSimulation()">
+            <div class="flex justify-between text-[10px] font-label text-neutral-500 mt-0.5">
+              <span>100m (Current lax)</span>
+              <span>1,000m (Statutory)</span>
+              <span>2,000m (Strict)</span>
+            </div>
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center text-xs font-label mb-1">
+              <label for="sliderDredgeReduction" class="text-neutral-700 font-medium">Active Dredge / Excavator Curfew:</label>
+              <span class="font-bold text-neutral-900" id="valDredgeReduction">35% Reduction</span>
+            </div>
+            <input type="range" id="sliderDredgeReduction" min="0" max="100" step="5" value="35" class="w-full h-1.5 bg-neutral-300 rounded cursor-pointer" oninput="updateSimulation()">
+            <div class="flex justify-between text-[10px] font-label text-neutral-500 mt-0.5">
+              <span>0% (Unregulated)</span>
+              <span>50% (Quota caps)</span>
+              <span>100% (Zero dredge)</span>
+            </div>
+          </div>
+
+          <!-- Simulation Computed Results -->
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-neutral-200">
+            <div class="p-2 bg-white border border-neutral-200">
+              <div class="font-label text-[10px] text-neutral-500 uppercase">Modeled Pra Turbidity</div>
+              <div class="font-label text-base font-bold text-neutral-900" id="simTurbidity">11,200 NTU</div>
+              <div class="font-label text-[10px] text-emerald-700" id="simTurbidityDelta">-38.5% recovery</div>
+            </div>
+
+            <div class="p-2 bg-white border border-neutral-200">
+              <div class="font-label text-[10px] text-neutral-500 uppercase">Recovered Potable Water</div>
+              <div class="font-label text-base font-bold text-neutral-900" id="simWaterRecovered">+5.8 MGD</div>
+              <div class="font-label text-[10px] text-blue-700">Daboase + Bunso</div>
+            </div>
+
+            <div class="p-2 bg-white border border-neutral-200">
+              <div class="font-label text-[10px] text-neutral-500 uppercase">Alum &amp; Polymer Savings</div>
+              <div class="font-label text-base font-bold text-neutral-900" id="simChemicalSavings">$3.4M / yr</div>
+              <div class="font-label text-[10px] text-neutral-600">GH₵ 52M annual</div>
+            </div>
+
+            <div class="p-2 bg-white border border-neutral-200">
+              <div class="font-label text-[10px] text-neutral-500 uppercase">Benthic Tox Hazard Index</div>
+              <div class="font-label text-base font-bold text-amber-700" id="simToxIndex">4.2 / 10</div>
+              <div class="font-label text-[10px] text-neutral-600">Reduced Hg wash-off</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 text-[10px] font-label text-neutral-500 leading-tight">
+          Model calibrates river cross-sectional stability metrics from Kowalski &amp; Zielińska (2025) and empirical turbidity-alum coagulation curves from GWCL.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Analytical Summary Charts (Chart.js Section) -->
+  <section class="border-t border-neutral-900 pt-6">
+    <div class="max-w-3xl mb-4">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-widest">Quantitative Risk Analytics</div>
+      <h2 class="font-headline text-2xl font-bold text-neutral-950">Comparative Hydro-Contamination &amp; Utility Disruption</h2>
+      <p class="font-body text-neutral-700 italic text-sm mt-0.5">
+        Empirical evaluation of turbidity exceedance (logarithmic scale), heavy metal sediment enrichment, and the economic strain on municipal water utilities.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      
+      <!-- Chart 1: Turbidity Comparison -->
+      <div class="p-4 bg-white border border-neutral-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-headline font-bold text-sm text-neutral-900">Turbidity Exceedance (NTU)</h3>
+            <span class="badge-pill bg-amber-100 text-amber-900">Log Scale</span>
+          </div>
+          <p class="font-label text-xs text-neutral-500 mb-3">Comparing baseline drinking standards vs. galamsey plumes</p>
+          <div class="h-64 relative">
+            <canvas id="chartTurbidity"></canvas>
+          </div>
+        </div>
+        <div class="source-line mt-3 pt-2 border-t border-neutral-200">
+          Source: GWCL Water Quality Bulletins &amp; Field SonTek ADCP sampling.
+        </div>
+      </div>
+
+      <!-- Chart 2: Heavy Metals & Metalloids -->
+      <div class="p-4 bg-white border border-neutral-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-headline font-bold text-sm text-neutral-900">Heavy Metal Contamination (Hg &amp; As)</h3>
+            <span class="badge-pill bg-rose-100 text-rose-900">Bioaccumulation</span>
+          </div>
+          <p class="font-label text-xs text-neutral-500 mb-3">Elemental mercury and arsenic vs. WHO regulatory ceilings</p>
+          <div class="h-64 relative">
+            <canvas id="chartHeavyMetals"></canvas>
+          </div>
+        </div>
+        <div class="source-line mt-3 pt-2 border-t border-neutral-200">
+          Source: WRC Small-Scale Mining Study &amp; USGS Geochemical Assessments.
+        </div>
+      </div>
+
+      <!-- Chart 3: Municipal Water Production Deficit -->
+      <div class="p-4 bg-white border border-neutral-200 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <h3 class="font-headline font-bold text-sm text-neutral-900">Utility Deficit &amp; Chemical Cost Surge</h3>
+            <span class="badge-pill bg-blue-100 text-blue-900">2016–2024</span>
+          </div>
+          <p class="font-label text-xs text-neutral-500 mb-3">Sekondi-Takoradi potable water yield vs. treatment expenses</p>
+          <div class="h-64 relative">
+            <canvas id="chartUtilityDeficit"></canvas>
+          </div>
+        </div>
+        <div class="source-line mt-3 pt-2 border-t border-neutral-200">
+          Source: GWCL Annual Operational Accounts &amp; Western Region Engineering Logs.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Geospatial Monitoring Matrix (Interactive Sortable / Filterable Table) -->
+  <section class="border-t border-neutral-900 pt-6">
+    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-4">
+      <div>
+        <div class="font-label text-xs text-neutral-500 uppercase tracking-widest">Hydrological Stations &amp; Asset Directory</div>
+        <h2 class="font-headline text-2xl font-bold text-neutral-950">Monitoring Reaches &amp; Threatened Intakes</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <label for="tableSearch" class="font-label text-xs text-neutral-500">Search:</label>
+        <input type="text" id="tableSearch" placeholder="Filter station or river..." onkeyup="filterTable(this.value)" class="font-label text-xs bg-white border border-neutral-300 py-1 px-2 rounded w-48">
+      </div>
+    </div>
+
+    <div class="overflow-x-auto border border-neutral-200 bg-white">
+      <table class="dossier-table" id="matrixTable">
+        <thead>
+          <tr>
+            <th>Asset / Reach Name</th>
+            <th>River System</th>
+            <th>Drainage Basin</th>
+            <th>Type</th>
+            <th>Turbidity (NTU)</th>
+            <th>Mercury (Hg µg/L)</th>
+            <th>Arsenic (As µg/L)</th>
+            <th>Operational Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="matrixTableBody">
+          <!-- Injected via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Geochemical & Environmental Mechanism Deep-Dive (4 Figure Cards) -->
+  <section class="border-t border-neutral-900 pt-6">
+    <div class="max-w-3xl mb-4">
+      <div class="font-label text-xs text-neutral-500 uppercase tracking-widest">Geomorphic &amp; Toxicological Mechanics</div>
+      <h2 class="font-headline text-2xl font-bold text-neutral-950">Mechanisms of Hydroclimatic Degradation</h2>
+      <p class="font-body text-neutral-700 italic text-sm mt-0.5">
+        Grounding geochemical transformations and sediment dynamics in peer-reviewed alluvial research and field records.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- Card 1: Mercury -->
+      <div class="p-4 bg-white border border-neutral-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-600"></span>
+          <h3 class="font-headline font-bold text-sm text-neutral-900">Elemental Mercury (Hg)</h3>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed">
+          Artisanal miners employ liquid mercury to amalgamate fine gold particles from dredged sluice concentrate. When the amalgam is blow-torched in the open air, vaporized mercury condenses into surrounding waterways. In anoxic riverbed sediments, anaerobic sulfate-reducing bacteria methylate inorganic Hg into bioavailable <em>methylmercury</em>, which biomagnifies up the aquatic food chain into mudfish (<em>Clarias gariepinus</em>) at levels reaching 1.85 mg/kg (3.7× WHO threshold).
+        </p>
+        <div class="mt-3 pt-2 border-t border-neutral-100 font-label text-[11px] text-neutral-500">
+          WHO Aquatic Limit: 1.0 µg/L · Monitored Offin: 14.8 µg/L
+        </div>
+      </div>
+
+      <!-- Card 2: Arsenic -->
+      <div class="p-4 bg-white border border-neutral-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-amber-600"></span>
+          <h3 class="font-headline font-bold text-sm text-neutral-900">Arsenopyrite Oxidation</h3>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed">
+          Gold in the Birimian Greenstone Belt (Obuasi, Prestea, Bogoso) is locked in sulfide matrices dominated by arsenopyrite (FeAsS) and pyrite. Excavator disruption and dredging churn these previously reducing deeper strata into oxygen-saturated surface waters, triggering acid mine drainage:
+          <span class="block font-label text-[10px] bg-neutral-100 p-1.5 my-1.5 text-neutral-800">
+            4FeAsS + 13O₂ + 6H₂O → 4Fe²⁺ + 4H₂AsO₄⁻ + 4SO₄²⁻ + 4H⁺
+          </span>
+          This reaction drops river pH, mobilizing dissolved toxic arsenite and arsenate ions up to 820 µg/L.
+        </p>
+        <div class="mt-3 pt-2 border-t border-neutral-100 font-label text-[11px] text-neutral-500">
+          WHO Standard: 10 µg/L · Kwabrafo Creek: 820 µg/L
+        </div>
+      </div>
+
+      <!-- Card 3: Geomorphic Degradation -->
+      <div class="p-4 bg-white border border-neutral-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+          <h3 class="font-headline font-bold text-sm text-neutral-900">Riverbed Incision &amp; Widening</h3>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed">
+          Corroborating findings from Kowalski &amp; Zielińska (2025) across West African alluvial systems, mechanized suction dredges ("changfas") excavate deep riverbed trenches, altering longitudinal hydraulic gradients. Sand extraction rates correlate strongly with channel widening (<em>r</em> = 0.81, <em>p</em> &lt; 0.01) and bank destabilization (<em>r</em> = -0.67). Over-steepened banks collapse during high-flow rain events, tripling bed sediment loads and obliterating benthic macroinvertebrate taxa.
+        </p>
+        <div class="mt-3 pt-2 border-t border-neutral-100 font-label text-[11px] text-neutral-500">
+          Bed lowering: up to 4.4m · Bank retreat: 8.2m / yr
+        </div>
+      </div>
+
+      <!-- Card 4: Municipal Water Treatment Failure -->
+      <div class="p-4 bg-white border border-neutral-200">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+          <h3 class="font-headline font-bold text-sm text-neutral-900">Municipal Plant Collapse</h3>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed">
+          Conventional water treatment infrastructure (coagulation via aluminum sulfate, flocculation, rapid sand gravity filtration) is engineered for raw water turbidity under 500 NTU. When galamsey drives Pra and Birim river turbidity above 20,000 NTU, settling basins fill with colloidal clay within hours, sand filters blind immediately, and abrasive silica grit shears centrifugal intake impellers. GWCL has been compelled to spend over GH₵ 85M annually in supplementary polymer coagulants.
+        </p>
+        <div class="mt-3 pt-2 border-t border-neutral-100 font-label text-[11px] text-neutral-500">
+          Daboase Output: 8.5 MGD (Demand: 22 MGD) · Deficit: 61%
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Technical Sources & Cartographic Metadata Note -->
+  <footer class="border-t border-neutral-300 pt-4 pb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs font-label text-neutral-500">
+    <div class="space-y-1">
+      <div><strong>Scientific Sources &amp; Public Records:</strong></div>
+      <div>• U.S. Geological Survey (USGS): Africa Political Boundaries (ADM0) &amp; Mineral Assessment of PGE / Africa O&amp;G Basins.</div>
+      <div>• Kowalski &amp; Zielińska (2025): <em>Sustainable sand mining practices and river morphological response</em>, DOI: 10.22271/27067483.2025.v7.i5a.591.</div>
+      <div>• Water Research Commission (WRC): <em>Water Related Impacts of Small Scale Mining</em>, Reports &amp; Case Studies.</div>
+      <div>• Ghana Water Company Limited (GWCL): Western &amp; Eastern Regional Engineering Production Bulletins.</div>
+    </div>
+    <div class="text-right">
+      <div>Cartographic Projection: EPSG:4326 (WGS84 Lat/Lon)</div>
+      <div>Vector Basemap: Natural Earth 1:50m TopoJSON (Public Domain)</div>
+      <div>Built for Geospatial Data Science &amp; Hydrological Portfolios</div>
+    </div>
+  </footer>
+
+</div>
+
+<!-- State Shim Required by Web-Craft Skill -->
+<api-shim></api-shim>
+
+<script>
+  // Global GIS Data Objects & State
+  let mapInstance = null;
+  let layerGroups = {
+    rivers: null,
+    plumes: null,
+    mines: null,
+    intakes: null,
+    hazardZones: null,
+    buffers5k: null,
+    buffers10k: null,
+    buffers25k: null,
+    basins: null
+  };
+
+  let activeBasinFilter = 'all';
+  let activeBufferMode = '10km';
+
+  // Geographic Coordinates for Drainage Networks & Key Sites
+  const GEO_DATA = {
+    // Watershed Polygons
+    basins: [
+      {
+        id: 'pra',
+        name: 'Pra River Drainage Basin',
+        area: '23,200 km²',
+        stroke: '#2563eb',
+        fill: 'rgba(37, 99, 235, 0.05)',
+        desc: 'Largest river basin in southwestern Ghana, encompassing the Offin, Birim, and Anum sub-basins. Directly discharges into the Gulf of Guinea at Shama.',
+        coords: [
+          [6.68, -0.65], [6.78, -1.05], [6.88, -1.45], [6.82, -1.75],
+          [6.55, -2.00], [6.25, -2.05], [5.95, -1.95], [5.65, -1.80],
+          [5.30, -1.75], [5.02, -1.62], [5.15, -1.50], [5.40, -1.35],
+          [5.65, -1.05], [5.85, -0.85], [6.15, -0.45], [6.45, -0.50],
+          [6.68, -0.65]
+        ]
+      },
+      {
+        id: 'ankobra',
+        name: 'Ankobra River Drainage Basin',
+        area: '8,400 km²',
+        stroke: '#0d9488',
+        fill: 'rgba(13, 148, 136, 0.05)',
+        desc: 'Western gold corridor basin draining the Bibiani, Bogoso, Prestea, and Tarkwa mineral districts, terminating at Asanta/Axim in the Gulf of Guinea.',
+        coords: [
+          [6.55, -2.40], [6.40, -2.20], [6.10, -2.10], [5.70, -2.05],
+          [5.40, -2.00], [5.10, -2.10], [4.89, -2.26], [4.95, -2.35],
+          [5.30, -2.30], [5.70, -2.32], [6.20, -2.42], [6.55, -2.40]
+        ]
+      }
+    ],
+
+    // River Networks (Polylines)
+    rivers: [
+      {
+        id: 'pra_main',
+        name: 'Pra River (Mainstem)',
+        basin: 'pra',
+        length: '240 km',
+        color: '#1d4ed8',
+        weight: 3.5,
+        turbidity: 18200,
+        coords: [
+          [6.62, -0.78], [6.50, -0.92], [6.35, -1.08], [6.18, -1.22],
+          [6.05, -1.35], [5.92, -1.48], [5.78, -1.55], [5.61, -1.58],
+          [5.42, -1.61], [5.28, -1.63], [5.15, -1.66], [5.08, -1.64],
+          [5.02, -1.62]
+        ]
+      },
+      {
+        id: 'offin',
+        name: 'Offin River (Major Tributary)',
+        basin: 'pra',
+        length: '185 km',
+        color: '#2563eb',
+        weight: 2.8,
+        turbidity: 38400,
+        coords: [
+          [6.82, -1.62], [6.72, -1.68], [6.58, -1.80], [6.42, -1.88],
+          [6.25, -1.95], [6.12, -1.90], [5.97, -1.78], [5.85, -1.68],
+          [5.78, -1.55]
+        ]
+      },
+      {
+        id: 'birim',
+        name: 'Birim River (Atewa / Oda Reach)',
+        basin: 'pra',
+        length: '175 km',
+        color: '#2563eb',
+        weight: 2.8,
+        turbidity: 24500,
+        coords: [
+          [6.35, -0.48], [6.29, -0.52], [6.22, -0.60], [6.10, -0.75],
+          [5.98, -0.92], [5.82, -1.12], [5.72, -1.30], [5.68, -1.45],
+          [5.78, -1.55]
+        ]
+      },
+      {
+        id: 'anum',
+        name: 'Anum River (Eastern Pra Tributary)',
+        basin: 'pra',
+        length: '95 km',
+        color: '#3b82f6',
+        weight: 2.0,
+        turbidity: 8600,
+        coords: [
+          [6.65, -1.25], [6.48, -1.30], [6.32, -1.35], [6.18, -1.38],
+          [6.05, -1.35]
+        ]
+      },
+      {
+        id: 'ankobra',
+        name: 'Ankobra River (Mainstem)',
+        basin: 'ankobra',
+        length: '190 km',
+        color: '#0d9488',
+        weight: 3.5,
+        turbidity: 31200,
+        coords: [
+          [6.48, -2.32], [6.32, -2.28], [6.15, -2.25], [5.95, -2.22],
+          [5.75, -2.18], [5.55, -2.16], [5.43, -2.14], [5.28, -2.16],
+          [5.12, -2.19], [4.98, -2.24], [4.89, -2.26]
+        ]
+      },
+      {
+        id: 'tano',
+        name: 'Tano River (Western Drainage)',
+        basin: 'other',
+        length: '210 km',
+        color: '#64748b',
+        weight: 2.0,
+        turbidity: 4200,
+        coords: [
+          [6.85, -2.50], [6.50, -2.62], [6.10, -2.70], [5.65, -2.75],
+          [5.25, -2.80], [5.06, -2.72]
+        ]
+      }
+    ],
+
+    // Severe Turbidity Plume Overlays (Rendered over the river paths)
+    turbidityPlumes: [
+      {
+        name: 'Offin-Pra Confluence Plume (Dunkwa Reach)',
+        river: 'Offin & Pra',
+        basin: 'pra',
+        turbidity: '38,400 NTU',
+        coords: [
+          [6.12, -1.90], [5.97, -1.78], [5.85, -1.68], [5.78, -1.55],
+          [5.61, -1.58]
+        ]
+      },
+      {
+        name: 'Birim River Kyebi-Bunso Plume',
+        river: 'Birim',
+        basin: 'pra',
+        turbidity: '24,500 NTU',
+        coords: [
+          [6.35, -0.48], [6.29, -0.52], [6.22, -0.60], [6.10, -0.75]
+        ]
+      },
+      {
+        name: 'Ankobra Prestea-Bogoso Plume',
+        river: 'Ankobra',
+        basin: 'ankobra',
+        turbidity: '31,200 NTU',
+        coords: [
+          [5.65, -2.17], [5.55, -2.16], [5.43, -2.14], [5.28, -2.16]
+        ]
+      },
+      {
+        name: 'Lower Pra Daboase Intake Plume',
+        river: 'Pra (Lower)',
+        basin: 'pra',
+        turbidity: '18,200 NTU',
+        coords: [
+          [5.35, -1.62], [5.28, -1.63], [5.15, -1.66], [5.08, -1.64]
+        ]
+      }
+    ],
+
+    // Gold Mining Deposits & Exploration Sites
+    mines: [
+      {
+        id: 'obuasi',
+        name: 'Obuasi (Ashanti Gold Mine)',
+        category: 'commercial',
+        basin: 'pra',
+        coords: [6.202, -1.671],
+        operator: 'AngloGold Ashanti',
+        geology: 'Birimian shear quartz veins & arsenopyrite-rich metasediments',
+        production: '&gt;30 Moz historic / world-class underground',
+        threat: 'Extremely high Arsenic (As) release from arsenopyrite roasting/tailings oxidation; Kwabrafo and Jimi stream contamination.',
+        hg: '1.2 µg/L',
+        as: '820 µg/L',
+        turbidity: '6,400 NTU'
+      },
+      {
+        id: 'tarkwa',
+        name: 'Tarkwa Gold Mine',
+        category: 'commercial',
+        basin: 'ankobra',
+        coords: [5.304, -1.996],
+        operator: 'Gold Fields Ghana',
+        geology: 'Tarkwaian quartz-pebble conglomerate (banket reef)',
+        production: '500,000+ oz/year open-pit operations',
+        threat: 'Massive open pit surface runoff, heavy siltation of Kawere and Ankobra feeder streams.',
+        hg: '0.8 µg/L',
+        as: '45 µg/L',
+        turbidity: '5,200 NTU'
+      },
+      {
+        id: 'iduapriem',
+        name: 'Iduapriem Mine',
+        category: 'commercial',
+        basin: 'ankobra',
+        coords: [5.255, -2.032],
+        operator: 'AngloGold Ashanti',
+        geology: 'Tarkwaian banket series conglomerate',
+        production: '250,000 oz/year open pit',
+        threat: 'Tailings footprint adjacent to Ankobra headwaters, active drainage control required.',
+        hg: '0.6 µg/L',
+        as: '38 µg/L',
+        turbidity: '4,800 NTU'
+      },
+      {
+        id: 'bogoso',
+        name: 'Bogoso Mine',
+        category: 'commercial',
+        basin: 'ankobra',
+        coords: [5.552, -2.008],
+        operator: 'Future Global Resources / Historic GMR',
+        geology: 'Birimian metasediments & graphite shear zones',
+        production: '2.8 Moz resource envelope',
+        threat: 'Refractory sulfide ore processing, high acid mine drainage potential into Ankobra.',
+        hg: '1.1 µg/L',
+        as: '280 µg/L',
+        turbidity: '8,500 NTU'
+      },
+      {
+        id: 'prestea',
+        name: 'Prestea Underground & Surface',
+        category: 'commercial',
+        basin: 'ankobra',
+        coords: [5.435, -2.142],
+        operator: 'Commercial concessions with intense artisanal overlap',
+        geology: 'High-grade quartz reef along western shear contact',
+        production: 'Historical 9 Moz gold belt',
+        threat: 'Direct riverbank artisanal tunneling and mercury sluicing discharging into Ankobra.',
+        hg: '18.4 µg/L',
+        as: '310 µg/L',
+        turbidity: '31,200 NTU'
+      },
+      {
+        id: 'dunkwa',
+        name: 'Dunkwa Alluvial Operations',
+        category: 'alluvial',
+        basin: 'pra',
+        coords: [5.968, -1.784],
+        operator: 'Dunkwa Continental Dredging & Artisanal Syndicates',
+        geology: 'Quaternary alluvial river gravels & terraces',
+        production: 'Extensive alluvial recovery hub',
+        threat: 'Ground zero for mechanized bucket-ladder & suction dredging on Offin-Pra rivers.',
+        hg: '24.6 µg/L',
+        as: '190 µg/L',
+        turbidity: '38,400 NTU'
+      },
+      {
+        id: 'akrokerri',
+        name: 'Akrokerri Concession',
+        category: 'alluvial',
+        basin: 'pra',
+        coords: [6.284, -1.632],
+        operator: 'Artisanal & junior exploration syndicates',
+        geology: 'Birimian contact zone & quartz vein stockworks',
+        production: 'Historic underground & active surface placer',
+        threat: 'Mercury amalgam retort burning and riverbed stripping along Jimi tributary.',
+        hg: '12.5 µg/L',
+        as: '145 µg/L',
+        turbidity: '16,500 NTU'
+      },
+      {
+        id: 'bibiani',
+        name: 'Bibiani Gold Mine',
+        category: 'commercial',
+        basin: 'ankobra',
+        coords: [6.463, -2.325],
+        operator: 'Asante Gold Corporation',
+        geology: 'Bibiani shear corridor, volcanic-sedimentary transition',
+        production: '2.5 Moz resource / open pit & underground',
+        threat: 'Ankobra northern headwater sediment loading and slope erosion.',
+        hg: '0.4 µg/L',
+        as: '62 µg/L',
+        turbidity: '4,100 NTU'
+      },
+      {
+        id: 'asankrangwa',
+        name: 'Asankrangwa Belt Centers',
+        category: 'alluvial',
+        basin: 'ankobra',
+        coords: [5.805, -2.091],
+        operator: 'Dispersed small-scale miners & galamsey camps',
+        geology: 'Kumasi Basin greywacke & quartz-vein splays',
+        production: 'Widespread alluvial & eluvial pitting',
+        threat: 'Severe riverbank instability, high suspended solids in Ankobra tributaries.',
+        hg: '16.2 µg/L',
+        as: '95 µg/L',
+        turbidity: '22,000 NTU'
+      },
+      {
+        id: 'homase',
+        name: 'Homase-Akrokerri Trend',
+        category: 'alluvial',
+        basin: 'pra',
+        coords: [6.348, -1.583],
+        operator: 'Junior open pit / local small-scale miners',
+        geology: 'Birimian phyllite-hosted quartz reef',
+        production: '0.6 Moz regional deposit',
+        threat: 'Hillside deforestation, agricultural runoff into the Anum and Pra catchments.',
+        hg: '5.4 µg/L',
+        as: '78 µg/L',
+        turbidity: '9,800 NTU'
+      },
+      {
+        id: 'kyebi_galamsey',
+        name: 'Kyebi / Atewa Galamsey Hub',
+        category: 'alluvial',
+        basin: 'pra',
+        coords: [6.160, -0.552],
+        operator: 'Artisanal dredging syndicates & excavators',
+        geology: 'Alluvial placer gravels in Birim river channel',
+        production: 'Intensive alluvial extraction',
+        threat: 'Complete destruction of the Birim riverbed upstream of Bunso Water Works.',
+        hg: '21.0 µg/L',
+        as: '115 µg/L',
+        turbidity: '24,500 NTU'
+      }
+    ],
+
+    // Municipal Water Treatment Intakes (GWCL)
+    intakes: [
+      {
+        id: 'daboase',
+        name: 'Daboase Water Treatment Plant',
+        basin: 'pra',
+        coords: [5.148, -1.658],
+        waterway: 'Pra River (Lower Reach)',
+        service: 'Sekondi-Takoradi Metropolis (650,000 pop.)',
+        designMGD: '22.0 MGD',
+        currentMGD: '8.5 MGD (61.4% Deficit)',
+        turbidity: '18,200 NTU',
+        status: 'Severely Impaired / Emergency Protocols',
+        impact: 'Centrifugal intake impellers severely eroded by sharp quartz silt; alum dosing increased by 420%; rotational water rationing enforced across Sekondi-Takoradi.',
+        chemCost: 'GH₵ 42,000 / day (Coagulant surge)'
+      },
+      {
+        id: 'bunso',
+        name: 'Bunso Water Works',
+        basin: 'pra',
+        coords: [6.291, -0.465],
+        waterway: 'Birim River',
+        service: 'Bunso, Tafo, and East Akim Municipal District',
+        designMGD: '1.5 MGD',
+        currentMGD: '0.3 MGD (80.0% Deficit)',
+        turbidity: '24,500 NTU',
+        status: 'Frequent Total Shutdowns',
+        impact: 'Raw water intake completely silted with yellow-brown colloidal clay; intake wells submerged; plant forced to suspend operations for weeks at a time.',
+        chemCost: 'GH₵ 8,500 / day'
+      },
+      {
+        id: 'twifo_praso',
+        name: 'Twifo Praso Water Treatment Plant',
+        basin: 'pra',
+        coords: [5.609, -1.551],
+        waterway: 'Pra River (Middle Reach)',
+        service: 'Twifo-Atti Morkwa District & Environs',
+        designMGD: '3.0 MGD',
+        currentMGD: '1.2 MGD (60.0% Deficit)',
+        turbidity: '28,000 NTU',
+        status: 'Severely Impaired',
+        impact: 'Offin silt plume hits intake directly; rapid blinding of sand filters; elevated dissolved iron and manganese precipitation.',
+        chemCost: 'GH₵ 14,000 / day'
+      },
+      {
+        id: 'kyebi_intake',
+        name: 'Kyebi Municipal Intake',
+        basin: 'pra',
+        coords: [6.164, -0.554],
+        waterway: 'Birim River Headwaters',
+        service: 'Kyebi Township and surrounding schools',
+        designMGD: '1.2 MGD',
+        currentMGD: '0.4 MGD (66.7% Deficit)',
+        turbidity: '22,000 NTU',
+        status: 'Intermittent Production',
+        impact: 'Direct excavator dredging 200m upstream of intake; heavy mercury contamination concerns; community relying on boreholes.',
+        chemCost: 'GH₵ 6,000 / day'
+      },
+      {
+        id: 'prestea_intake',
+        name: 'Prestea Water Scheme Intake',
+        basin: 'ankobra',
+        coords: [5.438, -2.138],
+        waterway: 'Ankobra River',
+        service: 'Prestea-Huni Valley Municipality',
+        designMGD: '2.5 MGD',
+        currentMGD: '0.7 MGD (72.0% Deficit)',
+        turbidity: '31,200 NTU',
+        status: 'Critical / Abandoned Intake Relocation',
+        impact: 'Old river intake decommissioned due to mud slurry; new upstream infiltration gallery struggling with mercury levels.',
+        chemCost: 'GH₵ 11,000 / day'
+      },
+      {
+        id: 'inchaban',
+        name: 'Inchaban Water Treatment Works',
+        basin: 'pra',
+        coords: [4.982, -1.684],
+        waterway: 'Anankov River Reservoir & Pra Conveyance',
+        service: 'Takoradi South & Industrial Port Area',
+        designMGD: '4.5 MGD',
+        currentMGD: '2.4 MGD (46.7% Deficit)',
+        turbidity: '4,500 NTU',
+        status: 'Constrained Auxiliary Supply',
+        impact: 'Operates as backup to Daboase; suffers when low Pra water transfer is shut down.',
+        chemCost: 'GH₵ 9,000 / day'
+      }
+    ],
+
+    // Galamsey Dredging Epicenters (Hazard Polygons)
+    hazardZones: [
+      {
+        id: 'hz_dunkwa',
+        name: 'Offin-Pra Confluence Epicenter',
+        basin: 'pra',
+        coords: [5.968, -1.784],
+        radiusKm: 16,
+        severity: 'Class 5: Catastrophic',
+        dredgeCount: '140+ excavator/dredge units',
+        desc: 'Unprecedented concentration of floating mechanical suction dredges ("changfas") scooping riverbed gravels across a 30km alluvial stretch.'
+      },
+      {
+        id: 'hz_prestea',
+        name: 'Middle Ankobra Corridor',
+        basin: 'ankobra',
+        coords: [5.480, -2.150],
+        radiusKm: 14,
+        severity: 'Class 5: Catastrophic',
+        dredgeCount: '95+ dredge and washing plants',
+        desc: 'Extensive alluvial mining cutting into river meander terraces, triggering chronic bank collapse and heavy mercury wash-off.'
+      },
+      {
+        id: 'hz_birim',
+        name: 'Upper Birim Atewa Corridor',
+        basin: 'pra',
+        coords: [6.240, -0.540],
+        radiusKm: 12,
+        severity: 'Class 5: Catastrophic',
+        dredgeCount: '80+ excavator teams',
+        desc: 'Riparian rainforest clearing in the Atewa foothills; severe siltation starving Bunso Water Works.'
+      },
+      {
+        id: 'hz_daboase',
+        name: 'Lower Pra Daboase Upstream Reach',
+        basin: 'pra',
+        coords: [5.280, -1.640],
+        radiusKm: 15,
+        severity: 'Class 4: Severe',
+        dredgeCount: '65+ alluvial diggings',
+        desc: 'Continuous alluvial sand winning and gold panning directly discharging suspended colloidal solids into the Daboase intake pool.'
+      }
+    ]
+  };
+
+  // Initialize Leaflet Map
+  function initMap() {
+    const mapEl = document.getElementById('map');
+    if (!mapEl) return;
+
+    mapInstance = L.map('map', {
+      center: [5.85, -1.65],
+      zoom: 8,
+      minZoom: 6,
+      maxZoom: 12,
+      scrollWheelZoom: false,
+      zoomControl: true
+    });
+
+    mapInstance.attributionControl.addAttribution('Vector Cartography: Natural Earth | Study: Ghana Mining Belt GIS Case Study');
+
+    // Create Layer Groups
+    layerGroups.basins = L.layerGroup().addTo(mapInstance);
+    layerGroups.buffers25k = L.layerGroup();
+    layerGroups.buffers10k = L.layerGroup().addTo(mapInstance);
+    layerGroups.buffers5k = L.layerGroup();
+    layerGroups.rivers = L.layerGroup().addTo(mapInstance);
+    layerGroups.plumes = L.layerGroup().addTo(mapInstance);
+    layerGroups.hazardZones = L.layerGroup().addTo(mapInstance);
+    layerGroups.mines = L.layerGroup().addTo(mapInstance);
+    layerGroups.intakes = L.layerGroup().addTo(mapInstance);
+
+    // Track mouse coordinates
+    mapInstance.on('mousemove', function(e) {
+      const el = document.getElementById('coordsDisplay');
+      if (el) {
+        el.textContent = `${e.latlng.lat.toFixed(3)}° N, ${Math.abs(e.latlng.lng).toFixed(3)}° W | Zoom: ${mapInstance.getZoom()}`;
+      }
+    });
+
+    // 1. Load Countries Vector Basemap from Pinned jsDelivr (Natural Earth 50m)
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json')
+      .then(r => r.json())
+      .then(topo => {
+        const geo = topojson.feature(topo, topo.objects.countries);
+        L.geoJSON(geo, {
+          style: function(f) {
+            const isGhana = f.properties && f.properties.name === 'Ghana';
+            return {
+              fillColor: isGhana ? '#FAF8F5' : '#EAE6DE',
+              fillOpacity: 1,
+              color: isGhana ? '#404040' : '#B5AFA6',
+              weight: isGhana ? 1.6 : 0.8
+            };
+          }
+        }).addTo(mapInstance);
+
+        // Bring our custom vector layers to front
+        renderCustomMapLayers();
+      })
+      .catch(err => {
+        console.warn('Vector basemap fetch notice:', err);
+        renderCustomMapLayers();
+      });
+  }
+
+  // Render Rivers, Basins, Mines, Intakes, and Buffers
+  function renderCustomMapLayers() {
+    // 1. Watershed Basins
+    GEO_DATA.basins.forEach(b => {
+      const poly = L.polygon(b.coords, {
+        color: b.stroke,
+        weight: 1.8,
+        dashArray: '5, 5',
+        fillColor: b.fill,
+        fillOpacity: 1
+      });
+      poly.on('click', () => showDossier('basin', b));
+      poly.bindTooltip(`<strong>${b.name}</strong><br>Area: ${b.area}`, { sticky: true });
+      layerGroups.basins.addLayer(poly);
+    });
+
+    // 2. Buffer Rings (5km, 10km, 25km) around Galamsey Epicenters
+    GEO_DATA.hazardZones.forEach(hz => {
+      // 25km buffer
+      const c25 = L.circle(hz.coords, {
+        radius: 25000,
+        color: '#d97706',
+        weight: 1,
+        dashArray: '3, 4',
+        fillColor: '#d97706',
+        fillOpacity: 0.06
+      });
+      c25.bindTooltip(`25 km Catchment Buffer: ${hz.name}`, { sticky: true });
+      layerGroups.buffers25k.addLayer(c25);
+
+      // 10km buffer
+      const c10 = L.circle(hz.coords, {
+        radius: 10000,
+        color: '#ea580c',
+        weight: 1.4,
+        dashArray: '4, 4',
+        fillColor: '#ea580c',
+        fillOpacity: 0.12
+      });
+      c10.bindTooltip(`10 km Runoff Ring: ${hz.name}`, { sticky: true });
+      layerGroups.buffers10k.addLayer(c10);
+
+      // 5km buffer
+      const c5 = L.circle(hz.coords, {
+        radius: 5000,
+        color: '#dc2626',
+        weight: 1.8,
+        fillColor: '#dc2626',
+        fillOpacity: 0.22
+      });
+      c5.bindTooltip(`5 km High-Toxicity Critical Zone: ${hz.name}`, { sticky: true });
+      layerGroups.buffers5k.addLayer(c5);
+
+      // Hazard Center Point / Epicenter Marker
+      const hMarker = L.circleMarker(hz.coords, {
+        radius: 7,
+        color: '#991b1b',
+        weight: 2,
+        fillColor: '#f87171',
+        fillOpacity: 0.9
+      });
+      hMarker.on('click', () => showDossier('hazard', hz));
+      hMarker.bindTooltip(`<strong>${hz.name}</strong><br>${hz.severity}`, { sticky: true });
+      layerGroups.hazardZones.addLayer(hMarker);
+    });
+
+    // 3. Rivers Polylines
+    GEO_DATA.rivers.forEach(r => {
+      const line = L.polyline(r.coords, {
+        color: r.color,
+        weight: r.weight,
+        opacity: 0.85
+      });
+      line.on('click', () => showDossier('river', r));
+      line.bindTooltip(`<strong>${r.name}</strong><br>Mean Turbidity: ${r.turbidity.toLocaleString()} NTU`, { sticky: true });
+      layerGroups.rivers.addLayer(line);
+    });
+
+    // 4. Turbidity Plume Overlays
+    GEO_DATA.turbidityPlumes.forEach(p => {
+      const plume = L.polyline(p.coords, {
+        color: '#b45309',
+        weight: 5.5,
+        opacity: 0.9,
+        lineCap: 'round'
+      });
+      plume.on('click', () => showDossier('plume', p));
+      plume.bindTooltip(`<strong>${p.name}</strong><br>Peak Turbidity: ${p.turbidity}`, { sticky: true });
+      layerGroups.plumes.addLayer(plume);
+    });
+
+    // 5. Gold Deposits / Mines
+    GEO_DATA.mines.forEach(m => {
+      const isComm = m.category === 'commercial';
+      const color = isComm ? '#1e3a8a' : '#c2410c';
+      const marker = L.circleMarker(m.coords, {
+        radius: isComm ? 6.5 : 5.5,
+        color: '#ffffff',
+        weight: 1.5,
+        fillColor: color,
+        fillOpacity: 0.95
+      });
+      marker.on('click', () => showDossier('mine', m));
+      marker.bindTooltip(`<strong>${m.name}</strong><br>${isComm ? 'Large-Scale Commercial' : 'Alluvial / Small-Scale'}<br>Operator: ${m.operator}`, { sticky: true });
+      layerGroups.mines.addLayer(marker);
+    });
+
+    // 6. Water Treatment Plant Intakes (GWCL)
+    GEO_DATA.intakes.forEach(it => {
+      const marker = L.circleMarker(it.coords, {
+        radius: 8.5,
+        color: '#ffffff',
+        weight: 2,
+        fillColor: '#dc2626',
+        fillOpacity: 1
+      });
+
+      // Pulse ring for severely impaired intake
+      const pulseDiv = L.divIcon({
+        className: 'relative',
+        html: `<div class="pulse-ring"></div><div style="width:14px; height:14px; border-radius:50%; background:#dc2626; border:2px solid #ffffff;"></div>`,
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+      });
+      const iconMarker = L.marker(it.coords, { icon: pulseDiv });
+
+      iconMarker.on('click', () => showDossier('intake', it));
+      iconMarker.bindTooltip(`<strong>${it.name}</strong><br>Status: ${it.status}<br>Current Yield: ${it.currentMGD}`, { sticky: true });
+      layerGroups.intakes.addLayer(iconMarker);
+    });
+  }
+
+  // Interactive Layer Toggle Handler
+  function toggleLayer(layerKey, isChecked) {
+    if (!mapInstance) return;
+
+    if (layerKey === 'rivers') {
+      if (isChecked) mapInstance.addLayer(layerGroups.rivers);
+      else mapInstance.removeLayer(layerGroups.rivers);
+    } else if (layerKey === 'plumes') {
+      if (isChecked) mapInstance.addLayer(layerGroups.plumes);
+      else mapInstance.removeLayer(layerGroups.plumes);
+    } else if (layerKey === 'mines') {
+      if (isChecked) mapInstance.addLayer(layerGroups.mines);
+      else mapInstance.removeLayer(layerGroups.mines);
+    } else if (layerKey === 'intakes') {
+      if (isChecked) mapInstance.addLayer(layerGroups.intakes);
+      else mapInstance.removeLayer(layerGroups.intakes);
+    } else if (layerKey === 'hazardZones') {
+      if (isChecked) mapInstance.addLayer(layerGroups.hazardZones);
+      else mapInstance.removeLayer(layerGroups.hazardZones);
+    }
+  }
+
+  // Buffer Radius Selector Handler
+  function setBufferRadius(mode) {
+    activeBufferMode = mode;
+    if (!mapInstance) return;
+
+    mapInstance.removeLayer(layerGroups.buffers5k);
+    mapInstance.removeLayer(layerGroups.buffers10k);
+    mapInstance.removeLayer(layerGroups.buffers25k);
+
+    if (mode === '5km') {
+      mapInstance.addLayer(layerGroups.buffers5k);
+    } else if (mode === '10km') {
+      mapInstance.addLayer(layerGroups.buffers10k);
+    } else if (mode === '25km') {
+      mapInstance.addLayer(layerGroups.buffers25k);
+    } else if (mode === 'all') {
+      mapInstance.addLayer(layerGroups.buffers25k);
+      mapInstance.addLayer(layerGroups.buffers10k);
+      mapInstance.addLayer(layerGroups.buffers5k);
+    }
+  }
+
+  // Basin Filter
+  function filterBasin(basin) {
+    activeBasinFilter = basin;
+    if (!mapInstance) return;
+
+    if (basin === 'pra') {
+      mapInstance.flyTo([5.95, -1.45], 9, { duration: 1.2 });
+    } else if (basin === 'ankobra') {
+      mapInstance.flyTo([5.65, -2.15], 9, { duration: 1.2 });
+    } else {
+      mapInstance.flyTo([5.85, -1.65], 8, { duration: 1.2 });
+    }
+  }
+
+  // Quick View Presets
+  function flyToView(viewName) {
+    if (!mapInstance) return;
+
+    const btns = ['btnViewFull', 'btnViewDunkwa', 'btnViewDaboase', 'btnViewPrestea', 'btnViewBunso'];
+    btns.forEach(b => {
+      const el = document.getElementById(b);
+      if (el) el.classList.remove('active');
+    });
+
+    if (viewName === 'full') {
+      document.getElementById('btnViewFull')?.classList.add('active');
+      mapInstance.flyTo([5.85, -1.65], 8, { duration: 1.0 });
+    } else if (viewName === 'dunkwa') {
+      document.getElementById('btnViewDunkwa')?.classList.add('active');
+      mapInstance.flyTo([5.968, -1.784], 11, { duration: 1.2 });
+      const item = GEO_DATA.mines.find(m => m.id === 'dunkwa');
+      if (item) showDossier('mine', item);
+    } else if (viewName === 'daboase') {
+      document.getElementById('btnViewDaboase')?.classList.add('active');
+      mapInstance.flyTo([5.148, -1.658], 11, { duration: 1.2 });
+      const item = GEO_DATA.intakes.find(it => it.id === 'daboase');
+      if (item) showDossier('intake', item);
+    } else if (viewName === 'prestea') {
+      document.getElementById('btnViewPrestea')?.classList.add('active');
+      mapInstance.flyTo([5.438, -2.140], 11, { duration: 1.2 });
+      const item = GEO_DATA.mines.find(m => m.id === 'prestea');
+      if (item) showDossier('mine', item);
+    } else if (viewName === 'bunso') {
+      document.getElementById('btnViewBunso')?.classList.add('active');
+      mapInstance.flyTo([6.291, -0.465], 11, { duration: 1.2 });
+      const item = GEO_DATA.intakes.find(it => it.id === 'bunso');
+      if (item) showDossier('intake', item);
+    }
+  }
+
+  // Dynamic Inspector Dossier Renderer
+  function showDossier(type, data) {
+    const titleEl = document.getElementById('dossierTitle');
+    const typeEl = document.getElementById('dossierType');
+    const targetNameEl = document.getElementById('dossierTargetName');
+    const contentEl = document.getElementById('dossierContent');
+    const coordsEl = document.getElementById('dossierCoords');
+
+    if (!titleEl || !contentEl) return;
+
+    if (type === 'mine') {
+      titleEl.textContent = data.name;
+      typeEl.textContent = data.category === 'commercial' ? 'LARGE-SCALE COMMERCIAL MINE' : 'ALLUVIAL / DREDGE CENTER';
+      typeEl.className = data.category === 'commercial' ? 'badge-pill bg-blue-100 text-blue-900 border border-blue-300' : 'badge-pill bg-amber-100 text-amber-900 border border-amber-300';
+      targetNameEl.textContent = data.name;
+      coordsEl.textContent = `Lat: ${data.coords[0].toFixed(3)}°N, Lon: ${Math.abs(data.coords[1]).toFixed(3)}°W`;
+
+      contentEl.innerHTML = `
+        <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Operator:</span>
+            <span class="font-semibold text-neutral-900">${data.operator}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Geological Formation:</span>
+            <span class="text-neutral-800">${data.geology}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Production / Resource:</span>
+            <span class="text-neutral-800">${data.production}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Drainage Basin:</span>
+            <span class="text-neutral-800 uppercase font-semibold">${data.basin} Basin</span>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-amber-50 border border-amber-200 text-xs text-amber-950 font-body">
+          <strong>Environmental Contamination Threat:</strong><br>
+          ${data.threat}
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 text-center text-xs font-label pt-1">
+          <div class="p-2 bg-neutral-100 border border-neutral-200">
+            <div class="text-[10px] text-neutral-500">Runoff Hg</div>
+            <div class="font-bold text-neutral-900">${data.hg}</div>
+          </div>
+          <div class="p-2 bg-neutral-100 border border-neutral-200">
+            <div class="text-[10px] text-neutral-500">Runoff As</div>
+            <div class="font-bold text-neutral-900">${data.as}</div>
+          </div>
+          <div class="p-2 bg-neutral-100 border border-neutral-200">
+            <div class="text-[10px] text-neutral-500">Reach Silt</div>
+            <div class="font-bold text-amber-700">${data.turbidity}</div>
+          </div>
+        </div>
+      `;
+    } else if (type === 'intake') {
+      titleEl.textContent = data.name;
+      typeEl.textContent = 'MUNICIPAL WATER TREATMENT INTAKE';
+      typeEl.className = 'badge-pill bg-red-100 text-red-900 border border-red-300';
+      targetNameEl.textContent = data.name;
+      coordsEl.textContent = `Lat: ${data.coords[0].toFixed(3)}°N, Lon: ${Math.abs(data.coords[1]).toFixed(3)}°W`;
+
+      contentEl.innerHTML = `
+        <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Waterway Source:</span>
+            <span class="font-semibold text-neutral-900">${data.waterway}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Target Population:</span>
+            <span class="text-neutral-800">${data.service}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Design Capacity:</span>
+            <span class="text-neutral-800">${data.designMGD}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Current Yield:</span>
+            <span class="font-bold text-red-600">${data.currentMGD}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Raw Water Turbidity:</span>
+            <span class="font-bold text-amber-700">${data.turbidity}</span>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-red-50 border border-red-200 text-xs text-red-950 font-body">
+          <strong>Operational Crisis &amp; Mechanical Damage:</strong><br>
+          ${data.impact}
+        </div>
+
+        <div class="p-2 bg-neutral-100 border border-neutral-200 flex justify-between items-center text-xs font-label">
+          <span class="text-neutral-600">Chemical Penalty:</span>
+          <span class="font-bold text-neutral-900">${data.chemCost}</span>
+        </div>
+      `;
+    } else if (type === 'hazard') {
+      titleEl.textContent = data.name;
+      typeEl.textContent = 'GALAMSEY HAZARD EPICENTER';
+      typeEl.className = 'badge-pill bg-red-800 text-white';
+      targetNameEl.textContent = data.name;
+      coordsEl.textContent = `Radius: ${data.radiusKm} km | Lat: ${data.coords[0].toFixed(3)}°N`;
+
+      contentEl.innerHTML = `
+        <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Severity Tier:</span>
+            <span class="font-bold text-red-700">${data.severity}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Equipment Load:</span>
+            <span class="font-semibold text-neutral-900">${data.dredgeCount}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Drainage Basin:</span>
+            <span class="text-neutral-800 uppercase font-semibold">${data.basin}</span>
+          </div>
+        </div>
+
+        <div class="p-2.5 bg-neutral-100 border border-neutral-200 text-xs text-neutral-800 font-body leading-relaxed">
+          ${data.desc}
+        </div>
+
+        <div class="p-2 bg-amber-50 border border-amber-200 text-xs font-label text-amber-900">
+          <strong>Buffer Buffer Radius:</strong> Within 10 km, sediment deposition rates average 4.2× natural baseline.
+        </div>
+      `;
+    } else if (type === 'river') {
+      titleEl.textContent = data.name;
+      typeEl.textContent = 'DRAINAGE CORRIDOR';
+      typeEl.className = 'badge-pill bg-blue-100 text-blue-900 border border-blue-300';
+      targetNameEl.textContent = data.name;
+      coordsEl.textContent = `Length: ~${data.length}`;
+
+      contentEl.innerHTML = `
+        <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Parent Basin:</span>
+            <span class="font-semibold text-neutral-900 uppercase">${data.basin} Basin</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Total Length:</span>
+            <span class="text-neutral-800">${data.length}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Average Turbidity:</span>
+            <span class="font-bold text-amber-700">${data.turbidity.toLocaleString()} NTU</span>
+          </div>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed pt-1">
+          Intense riverbed sand winning and hydraulic wash boxes have degraded channel equilibrium, triggering deep bed incision and severe riparian bank failure along downstream reaches.
+        </p>
+      `;
+    } else if (type === 'basin') {
+      titleEl.textContent = data.name;
+      typeEl.textContent = 'DRAINAGE WATERSHED';
+      typeEl.className = 'badge-pill bg-neutral-800 text-white';
+      targetNameEl.textContent = data.name;
+      coordsEl.textContent = `Area: ${data.area}`;
+
+      contentEl.innerHTML = `
+        <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Total Basin Area:</span>
+            <span class="font-semibold text-neutral-900">${data.area}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-neutral-500">Primary Outfall:</span>
+            <span class="text-neutral-800">Gulf of Guinea (Atlantic Ocean)</span>
+          </div>
+        </div>
+        <p class="font-body text-xs text-neutral-700 leading-relaxed pt-1">
+          ${data.desc}
+        </p>
+      `;
+    }
+  }
+
+  // Reset Feature Dossier to Catchment Overview
+  function resetDossier() {
+    const titleEl = document.getElementById('dossierTitle');
+    const typeEl = document.getElementById('dossierType');
+    const targetNameEl = document.getElementById('dossierTargetName');
+    const contentEl = document.getElementById('dossierContent');
+    const coordsEl = document.getElementById('dossierCoords');
+
+    if (!titleEl || !contentEl) return;
+
+    titleEl.textContent = 'Geospatial Feature Dossier';
+    typeEl.textContent = 'CATCHMENT SUMMARY';
+    typeEl.className = 'badge-pill bg-neutral-200 text-neutral-800';
+    targetNameEl.textContent = 'Southwestern Regional Gold Belt';
+    coordsEl.textContent = "Coordinates: 5°51'N, 1°39'W";
+
+    contentEl.innerHTML = `
+      <p class="font-body text-sm text-neutral-700 leading-relaxed">
+        Southwestern Ghana hosts West Africa's premier auriferous belts (Ashanti, Tarkwaian, and Sefwi). Unregulated riverbed excavator dredging and suction washing have transformed the Pra and Ankobra drainages into hyper-turbid corridors, threatening potable water production for over 1.2 million urban residents.
+      </p>
+
+      <div class="bg-neutral-50 p-2.5 border border-neutral-200 text-xs font-label space-y-1.5">
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Selected Target:</span>
+          <span class="font-semibold text-neutral-900">Southwestern Regional Gold Belt</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Primary Basins:</span>
+          <span class="text-neutral-800">Pra (23,200 km²) &amp; Ankobra (8,400 km²)</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Geological Domain:</span>
+          <span class="text-neutral-800">Birimian Metavolcanics &amp; Tarkwaian Reefs</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-neutral-500">Threat Vectors:</span>
+          <span class="text-red-700 font-medium">Turbidity, Mercury (Hg), Arsenic (As)</span>
+        </div>
+      </div>
+
+      <div class="pt-1">
+        <div class="font-label text-xs font-semibold text-neutral-900 uppercase tracking-wider mb-1">Critical Water Intakes at Risk:</div>
+        <ul class="text-xs space-y-1 text-neutral-700">
+          <li class="flex items-center justify-between">
+            <span>• Daboase Intake (Sekondi-Takoradi):</span>
+            <span class="font-label text-red-600 font-medium">61% Supply Deficit</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>• Bunso Water Works (Birim):</span>
+            <span class="font-label text-red-600 font-medium">Frequent Shutdown</span>
+          </li>
+          <li class="flex items-center justify-between">
+            <span>• Twifo Praso Plant (Pra):</span>
+            <span class="font-label text-amber-700 font-medium">Severe Impeller Wear</span>
+          </li>
+        </ul>
+      </div>
+    `;
+  }
+
+  // Interactive Policy & Buffer Simulation Model
+  function updateSimulation() {
+    const bufDistance = parseInt(document.getElementById('sliderBufferDistance').value, 10);
+    const dredgeReduction = parseInt(document.getElementById('sliderDredgeReduction').value, 10);
+
+    document.getElementById('valBufferDistance').textContent = `${bufDistance} meters`;
+    document.getElementById('valDredgeReduction').textContent = `${dredgeReduction}% Reduction`;
+
+    // Mathematical hydro-restoration model based on Kowalski & Zielinska 2025 and GWCL empirical curves
+    // Base Pra turbidity: 18,200 NTU.
+    // Factor: dredge reduction gives direct sediment load drop (power 1.15)
+    // Buffer distance provides filtration trap for overland wash (logarithmic scaling)
+    const bufEffect = Math.min(0.45, Math.log10(bufDistance / 50) * 0.28);
+    const dredgeEffect = (dredgeReduction / 100) * 0.75;
+    const combinedReduction = Math.min(0.92, dredgeEffect + bufEffect);
+
+    const modeledTurbidity = Math.round(18200 * (1 - combinedReduction));
+    const pctTurbidityDrop = Math.round(combinedReduction * 100);
+
+    // Potable water recovery (MGD)
+    const recoveredMGD = (combinedReduction * 12.5).toFixed(1);
+
+    // Chemical savings in Million USD / year
+    const chemSavings = (combinedReduction * 5.4).toFixed(1);
+
+    // Toxic hazard index (0-10 scale)
+    const toxIndex = Math.max(1.2, (8.8 * (1 - combinedReduction * 0.85))).toFixed(1);
+
+    document.getElementById('simTurbidity').textContent = `${modeledTurbidity.toLocaleString()} NTU`;
+    document.getElementById('simTurbidityDelta').textContent = `-${pctTurbidityDrop}% recovery`;
+    document.getElementById('simWaterRecovered').textContent = `+${recoveredMGD} MGD`;
+    document.getElementById('simChemicalSavings').textContent = `$${chemSavings}M / yr`;
+    document.getElementById('simToxIndex').textContent = `${toxIndex} / 10`;
+  }
+
+  // Populate Geospatial Monitoring Matrix Table
+  function populateMatrixTable() {
+    const tbody = document.getElementById('matrixTableBody');
+    if (!tbody) return;
+
+    // Combine intakes and key mining reaches into a structured dataset
+    const stations = [
+      { name: 'Daboase Intake Works', river: 'Pra River (Lower)', basin: 'Pra', type: 'Municipal Intake', ntu: 18200, hg: 8.4, as: 42, status: 'Severe Deficit (-61%)', coords: [5.148, -1.658] },
+      { name: 'Bunso Water Works', river: 'Birim River', basin: 'Pra', type: 'Municipal Intake', ntu: 24500, hg: 11.2, as: 68, status: 'Frequent Shutdown', coords: [6.291, -0.465] },
+      { name: 'Dunkwa Alluvial Reach', river: 'Offin River', basin: 'Pra', type: 'Dredging Center', ntu: 38400, hg: 24.6, as: 190, status: 'Catastrophic Siltation', coords: [5.968, -1.784] },
+      { name: 'Prestea Ankobra Reach', river: 'Ankobra River', basin: 'Ankobra', type: 'Mining Corridor', ntu: 31200, hg: 18.4, as: 310, status: 'Slurry Discharge', coords: [5.438, -2.140] },
+      { name: 'Twifo Praso Plant', river: 'Pra River (Mid)', basin: 'Pra', type: 'Municipal Intake', ntu: 28000, hg: 14.1, as: 110, status: 'Heavy Abrasion (-60%)', coords: [5.609, -1.551] },
+      { name: 'Kyebi Headwaters', river: 'Birim River', basin: 'Pra', type: 'Artisanal Placer', ntu: 22000, hg: 21.0, as: 115, status: 'Channel Stripped', coords: [6.160, -0.552] },
+      { name: 'Obuasi Tailings Reach', river: 'Jimi / Kwabrafo', basin: 'Pra', type: 'Industrial Runoff', ntu: 6400, hg: 1.2, as: 820, status: 'High Arsenic Shock', coords: [6.202, -1.671] },
+      { name: 'Tarkwa Mining Belt', river: 'Kawere Stream', basin: 'Ankobra', type: 'Open-Pit Runoff', ntu: 5200, hg: 0.8, as: 45, status: 'Sediment Transport', coords: [5.304, -1.996] },
+      { name: 'Asankrangwa Corridor', river: 'Ankobra Tribs', basin: 'Ankobra', type: 'Alluvial Placer', ntu: 22000, hg: 16.2, as: 95, status: 'Bank Instability', coords: [5.805, -2.091] },
+      { name: 'Inchaban Reservoir', river: 'Anankov / Pra Tr.', basin: 'Pra', type: 'Municipal Auxiliary', ntu: 4500, hg: 2.1, as: 18, status: 'Capacity Stressed', coords: [4.982, -1.684] }
+    ];
+
+    tbody.innerHTML = '';
+    stations.forEach(st => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="font-medium text-neutral-900">${st.name}</td>
+        <td class="text-neutral-700">${st.river}</td>
+        <td class="font-label text-xs uppercase">${st.basin}</td>
+        <td><span class="badge-pill ${st.type === 'Municipal Intake' ? 'bg-red-100 text-red-800' : 'bg-neutral-100 text-neutral-800'}">${st.type}</span></td>
+        <td class="font-label font-bold text-amber-800">${st.ntu.toLocaleString()}</td>
+        <td class="font-label text-rose-700">${st.hg}</td>
+        <td class="font-label text-neutral-900 font-medium">${st.as}</td>
+        <td><span class="badge-pill ${st.status.includes('Shutdown') || st.status.includes('Deficit') || st.status.includes('Catastrophic') ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-800'}">${st.status}</span></td>
+        <td>
+          <button type="button" class="btn-action text-xs py-0.5 px-2" onclick="zoomToCoord(${st.coords[0]}, ${st.coords[1]}, '${st.name}')">Locate</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Filter Table Handler
+  function filterTable(query) {
+    const q = query.toLowerCase();
+    const rows = document.querySelectorAll('#matrixTableBody tr');
+    rows.forEach(r => {
+      const text = r.textContent.toLowerCase();
+      r.style.display = text.includes(q) ? '' : 'none';
+    });
+  }
+
+  // Zoom to coordinate from Table Action
+  function zoomToCoord(lat, lng, label) {
+    if (!mapInstance) return;
+    mapInstance.flyTo([lat, lng], 11, { duration: 1.2 });
+    window.scrollTo({ top: 380, behavior: 'smooth' });
+
+    // Check if it matches an intake or mine
+    const intake = GEO_DATA.intakes.find(i => i.name === label);
+    if (intake) { showDossier('intake', intake); return; }
+    const mine = GEO_DATA.mines.find(m => m.name === label);
+    if (mine) { showDossier('mine', mine); return; }
+  }
+
+  // Initialize Analytical Charts (Chart.js)
+  function initCharts() {
+    // 1. Chart: Turbidity Log Scale Comparison
+    const ctxTurb = document.getElementById('chartTurbidity');
+    if (ctxTurb) {
+      new Chart(ctxTurb, {
+        type: 'bar',
+        data: {
+          labels: ['WHO Safe Std', 'GWCL Max Treat', 'Pre-Galamsey', 'Pra-Daboase', 'Birim-Bunso', 'Ankobra-Prestea', 'Offin-Dunkwa'],
+          datasets: [{
+            label: 'Turbidity (NTU)',
+            data: [5, 500, 35, 18200, 24500, 31200, 38400],
+            backgroundColor: [
+              '#1b8a6b',
+              '#2f6db5',
+              '#94a3b8',
+              '#d97706',
+              '#ea580c',
+              '#dc2626',
+              '#991b1b'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              type: 'logarithmic',
+              title: {
+                display: true,
+                text: 'Turbidity (NTU, Log10 Scale)',
+                font: { family: 'Roboto Mono', size: 10 }
+              },
+              ticks: {
+                font: { family: 'Roboto Mono', size: 9 },
+                callback: function(val) {
+                  return Number(val).toLocaleString();
+                }
+              },
+              grid: { color: '#e5e7eb' }
+            },
+            x: {
+              ticks: { font: { family: 'Roboto Mono', size: 9 }, maxRotation: 45 },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(c) {
+                  return `Recorded Turbidity: ${c.raw.toLocaleString()} NTU`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Chart: Heavy Metals (Hg & As)
+    const ctxMetals = document.getElementById('chartHeavyMetals');
+    if (ctxMetals) {
+      new Chart(ctxMetals, {
+        type: 'bar',
+        data: {
+          labels: ['WHO Guideline', 'Offin River', 'Ankobra River', 'Birim River', 'Kwabrafo Creek'],
+          datasets: [
+            {
+              label: 'Mercury (Hg µg/L)',
+              data: [1.0, 14.8, 22.4, 11.2, 1.2],
+              backgroundColor: '#dc2626'
+            },
+            {
+              label: 'Arsenic (As µg/L ÷ 10)',
+              data: [1.0, 19.0, 31.0, 6.8, 82.0], // Scaled by 10 for side-by-side legibility
+              backgroundColor: '#121212'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              title: {
+                display: true,
+                text: 'Concentration (µg/L) [As scaled ÷10]',
+                font: { family: 'Roboto Mono', size: 10 }
+              },
+              ticks: { font: { family: 'Roboto Mono', size: 9 } },
+              grid: { color: '#e5e7eb' }
+            },
+            x: {
+              ticks: { font: { family: 'Roboto Mono', size: 9 } },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { font: { family: 'Roboto Mono', size: 10 }, boxWidth: 12 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(c) {
+                  if (c.datasetIndex === 1) {
+                    return `Arsenic (As): ${(c.raw * 10).toFixed(0)} µg/L (WHO: 10 µg/L)`;
+                  }
+                  return `Mercury (Hg): ${c.raw} µg/L (WHO: 1.0 µg/L)`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // 3. Chart: Utility Production Deficit vs Chemical Costs
+    const ctxUtil = document.getElementById('chartUtilityDeficit');
+    if (ctxUtil) {
+      new Chart(ctxUtil, {
+        type: 'line',
+        data: {
+          labels: ['2016', '2018', '2020', '2022', '2024'],
+          datasets: [
+            {
+              label: 'Daboase Potable Yield (MGD)',
+              data: [19.5, 17.0, 13.5, 10.2, 8.5],
+              borderColor: '#1d4ed8',
+              backgroundColor: 'rgba(29, 78, 216, 0.1)',
+              yAxisID: 'y1',
+              tension: 0.25,
+              fill: true,
+              borderWidth: 2.5
+            },
+            {
+              label: 'Chemical Cost (GH₵ Millions/yr)',
+              data: [16.2, 24.5, 41.0, 68.5, 86.4],
+              borderColor: '#b45309',
+              backgroundColor: '#b45309',
+              borderDash: [4, 4],
+              yAxisID: 'y2',
+              tension: 0.2,
+              borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y1: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: 'Yield (Million Gal / Day)',
+                font: { family: 'Roboto Mono', size: 9 }
+              },
+              ticks: { font: { family: 'Roboto Mono', size: 9 } },
+              grid: { color: '#e5e7eb' },
+              min: 0,
+              max: 25
+            },
+            y2: {
+              type: 'linear',
+              position: 'right',
+              title: {
+                display: true,
+                text: 'Chemical Costs (GH₵ M)',
+                font: { family: 'Roboto Mono', size: 9 }
+              },
+              ticks: { font: { family: 'Roboto Mono', size: 9 } },
+              grid: { display: false },
+              min: 0,
+              max: 100
+            },
+            x: {
+              ticks: { font: { family: 'Roboto Mono', size: 9 } },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { font: { family: 'Roboto Mono', size: 10 }, boxWidth: 12 }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // Document Ready Initialization
+  document.addEventListener('DOMContentLoaded', function() {
+    initMap();
+    populateMatrixTable();
+    initCharts();
+    updateSimulation();
+
+    // Render Lucide Icons if available
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      window.lucide.createIcons();
+    }
+  });
+</script>
+
+</body>
+</html>
