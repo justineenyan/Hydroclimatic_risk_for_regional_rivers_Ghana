@@ -1,9 +1,6 @@
 
 # Pra & Ankobra River Basins: Galamsey Turbidity & Mining Contamination Analytics
-
-[![GitHub Pages]([suspicious link removed])](https://<your-username>.github.io/<repo-name>/ghana-rivers-case-study.html)
-[![GIS Data]([suspicious link removed])]([suspicious link removed])
-[![Case Study]([suspicious link removed])]()
+High level Report : https://docs.google.com/document/d/1T0uoGYIF0JT-P7an2wxcqvK-WTrwM1Bnrc2SP1su1Ug/edit?usp=sharing
 
 An interactive geospatial investigation exploring how artisanal and small-scale gold mining (*galamsey*) within southwestern Ghana's Birimian gold belt has driven severe riverbed degradation, toxic mercury/arsenic mobility, and acute municipal water treatment shutdowns across the Pra and Ankobra catchments.
 
